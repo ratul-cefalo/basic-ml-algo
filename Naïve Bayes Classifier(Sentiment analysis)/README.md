@@ -15,4 +15,4 @@ Score is either **1 (for positive) or 0 (for negative).**
 * Create vocabulary on training dataset.
 * Calculate prior probability for each class.
 * Calculate Conditional Probabilities for all vocabulary given all classes based on training dataset
-* For all test instance, calculate posterior probability for each class and select the predicted class with the maximum posterior probability.
+* For all test instance, calculate posterior probability for each class & select the predicted class with the maximum posterior probability.
