@@ -28,8 +28,5 @@ Data Attribute Information:
 |  Normal Nucleoli             | 1 - 10      |
 |  Mitoses                     | 1 - 10      |
 * #### Class: ####
-```
-Class                 : (2 for Benign, 4 for Malignant)
-```
 |  Class                       | 2 for Benign, 4 for Malignant   |
 |------------------------------|:-------------------------------:|
