@@ -1,6 +1,6 @@
 # Linear Regression
 
-![Linear Regression ](https://github.com/Mazhar004/Basic-ML-Algorithm-Code/blob/master/Linear%20Regression/Visualize%20Linear%20Regression/linear%20regression.gif)
+![Linear Regression ](Visualize%20Linear%20Regression/linear%20regression.gif)
 
 ## Description: ##
 
