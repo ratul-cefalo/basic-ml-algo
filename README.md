@@ -8,5 +8,5 @@
 ## Unsupervised:
   * K-means Clustering [ Link ](unsupervised/kmeans_clustering)
 ## Deep Learning (Supervised Neural Network):
-  * Logistic Regression [ Link ](logistic_regression_neural_net)
+  * Logistic Regression [ Link ](deep_learning/logistic_regression_neural_net)
 
