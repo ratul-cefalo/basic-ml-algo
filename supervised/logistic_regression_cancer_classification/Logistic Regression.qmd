@@ -1,0 +1,204 @@
+---
+title: Import Library
+jupyter: python3
+---
+
+
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-20T17:18:32.957168Z', start_time: '2019-12-20T17:18:31.620307Z'}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+```
+
+# Data Loading
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-20T17:18:33.331043Z', start_time: '2019-12-20T17:18:32.961097Z'}
+missing_values = ["n/a", "na", "?", "--"]
+
+filename = 'breast-cancer-wisconsin.data'
+data = pd.read_csv(filename, header=None, na_values=missing_values)
+
+data.head()
+```
+
+# 1. Data Split
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-20T17:18:33.522011Z', start_time: '2019-12-20T17:18:33.336037Z'}
+def data_split(data, frac=0.8):
+
+    train = data.sample(frac=frac, random_state=3)
+    test = data.drop(train.index)
+
+    return train, test
+
+
+train, test = data_split(data)
+print('Train Data Shape = {}\nTest  Data Shape = {}'.format(train.shape, test.shape))
+```
+
+# 2. Data Preprocess
+## 2.1 Remove ID Column
+## 2.2 Seperate feature & label
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-20T17:18:33.550005Z', start_time: '2019-12-20T17:18:33.529007Z'}
+def data_prepare(data, flag=1):
+    if flag:
+        data_x = pd.DataFrame(data.iloc[:, 1:-1])
+        data_y = pd.DataFrame(data.iloc[:, -1:])
+
+        data_y = pd.DataFrame(data_y.replace(to_replace=[2, 4], value=[0, 1]))
+        return data_x, data_y.values
+    else:
+        data_x = pd.DataFrame(data.iloc[:, 1:])
+        return data_x
+
+
+df_train_x, train_y = data_prepare(train)
+df_test_x, test_y = data_prepare(test)
+```
+
+# 2. Data Preprocess
+## 2.3 Data type conversion
+## 2.4 Missing value replace with mean
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-20T17:18:33.824977Z', start_time: '2019-12-20T17:18:33.555008Z'}
+def preprocess(data):
+    m, n = data.shape
+    new_data = pd.DataFrame()
+
+    for i in data:
+        new_data[i] = data[i].astype('float32')
+        new_data[i] = new_data[i].fillna(new_data[i].mean())
+    new_data = np.concatenate([np.ones((m, 1)), new_data.values], axis=1)
+
+    return new_data
+
+
+train_x = preprocess(df_train_x)
+test_x = preprocess(df_test_x)
+print(train_x.shape, test_x.shape)
+```
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-20T17:18:33.847961Z', start_time: '2019-12-20T17:18:33.833961Z'}
+def sigmoid(z):
+    return (1/(1+np.exp(-z)))
+```
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-20T17:18:33.943955Z', start_time: '2019-12-20T17:18:33.853957Z'}
+def predict(x, theta):
+    z = np.matmul(x, theta.T)
+    return sigmoid(z)
+```
+
+# 3. Cost Calculation
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-20T17:18:34.054926Z', start_time: '2019-12-20T17:18:33.953942Z'}
+def cost(x, y, theta):
+    m, n = x.shape
+    pred_val = predict(x, theta)
+    error = (-1/m) * np.sum(y*np.log(pred_val)+(1-y)*np.log(1-pred_val))
+    return error
+```
+
+# 4. Gradient Descent Optimization
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-20T17:18:34.168908Z', start_time: '2019-12-20T17:18:34.057925Z'}
+def optimize(x, y, theta, alpha=0.001, epoch=100000, flag=0):
+    """
+        Set flag = 1 for plotting error curve
+    """
+    if flag:
+        plt.figure(figsize=(10, 5))
+        error_list = []
+
+    m, n = x.shape
+
+    for i in range(epoch):
+
+        error = predict(x, theta)-y
+        differentiate = np.matmul(error.T, x)
+        theta -= (alpha*differentiate)/m
+
+        if flag:
+            error_list.append(cost(x, y, theta))
+    if flag:
+        plt.title('Error Curve')
+        plt.plot(range(epoch), error_list, linewidth=3)
+        plt.ylabel("Error")
+        plt.xlabel("Epochs")
+        plt.show()
+
+    return theta
+```
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-20T17:18:37.039476Z', start_time: '2019-12-20T17:18:34.172909Z'}
+m, n = train_x.shape
+theta = np.zeros((1, n))
+theta = optimize(train_x, train_y, theta, 0.01, 10000, flag=1)
+```
+
+# 5. Decision Boundry
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-20T17:18:37.055459Z', start_time: '2019-12-20T17:18:37.047471Z'}
+def decision(x, theta):
+    y = predict(x, theta)
+    return np.where(y >= 0.5, 1, 0)
+```
+
+# 6. Model Performance
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-20T17:18:37.166441Z', start_time: '2019-12-20T17:18:37.060475Z'}
+def accuracy(test_x, tes_y, theta):
+    TP, TN, FP, FN = 0, 0, 0, 0
+
+    for i in range(len(test_x)):
+        pred = decision(test_x[i], theta)
+        if test_y[i] == pred:
+            TP, TN = (TP, TN+1) if pred == 0 else (TP+1, TN)
+        else:
+            FP, FN = (FP, FN+1) if pred == 0 else (FP+1, FN)
+
+    print("TP = {}\nTN = {}\nFP = {}\nFN = {}\n".format(TP, TN, FP, FN))
+
+    precision = round(TP/(TP+FP)*100, 2)
+    recall = round(TP/(TP+FN)*100, 2)
+    f1_score = round((2*precision*recall)/(precision+recall), 2)
+    accuracy = round((TP+TN)/(TP+TN+FP+FN)*100, 2)
+
+    return 'Precision = {}%\nRecall    = {}%\nF1 Score  = {}%\nAccuracy  = {}%'.format(precision, recall, f1_score, accuracy)
+```
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-20T17:18:37.331429Z', start_time: '2019-12-20T17:18:37.169438Z'}
+#| scrolled: true
+print(accuracy(test_x, test_y, theta))
+```
+
+# 7. Check Predicted Class Name
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-20T17:19:11.173120Z', start_time: '2019-12-20T17:19:11.162124Z'}
+#| scrolled: true
+def output_class(row, theta):
+    class_name = ['Benign', 'Malignant']
+    result = decision(row, theta)
+    return class_name[result[0]]
+
+
+print("For test case {}  Disease Name = {}".format(1, output_class(test_x[0, :], theta)))
+print("For test case {} Disease Name = {}".format(11, output_class(test_x[10, :], theta)))
+```
+

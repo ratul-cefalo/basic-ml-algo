@@ -1,0 +1,181 @@
+---
+title: 1. Import Library
+jupyter: python3
+---
+
+
+
+```{python}
+#| ExecuteTime: {end_time: '2020-01-24T16:04:42.656382Z', start_time: '2020-01-24T16:04:39.140855Z'}
+import pandas as pd
+import numpy as np
+
+from sklearn.preprocessing import StandardScaler as sc
+from sklearn.model_selection import train_test_split as tts
+
+import matplotlib.pyplot as plt
+from IPython.display import display, clear_output
+```
+
+# 2. Data Load
+
+```{python}
+#| ExecuteTime: {end_time: '2020-01-24T16:04:42.687612Z', start_time: '2020-01-24T16:04:42.656382Z'}
+#| scrolled: true
+data = pd.read_csv('Data.csv')
+data.head()
+```
+
+# 3. Data Split
+
+```{python}
+#| ExecuteTime: {end_time: '2020-01-24T16:04:42.828302Z', start_time: '2020-01-24T16:04:42.687612Z'}
+x_train, x_test, y_train, y_test = tts(
+    data.iloc[:, :-1], data.iloc[:, -1:], test_size=0.1, random_state=400)
+```
+
+```{python}
+#| ExecuteTime: {end_time: '2020-01-24T16:04:42.968857Z', start_time: '2020-01-24T16:04:42.828302Z'}
+print(x_train.shape, x_test.shape, y_train.shape, y_test.shape)
+```
+
+# 4. Data Visualize
+
+```{python}
+#| ExecuteTime: {end_time: '2020-01-24T16:04:43.328218Z', start_time: '2020-01-24T16:04:42.968857Z'}
+#| scrolled: true
+plt.figure()
+plt.scatter(x_train, y_train, label="Train")
+plt.scatter(x_test, y_test, label="Test")
+plt.legend()
+plt.show()
+```
+
+# 5. Linear Regression
+
+```{python}
+#| ExecuteTime: {end_time: '2020-01-24T16:04:43.390733Z', start_time: '2020-01-24T16:04:43.328218Z'}
+class RegressionModel:
+    def __init__(self, x, y):
+        self.scalex = sc()
+        self.scaley = sc()
+        self.x = self.add_col(self.scalex.fit_transform(x))
+        self.y = self.scaley.fit_transform(y)
+
+        self.theta = np.random.randn(1, 2)
+        self.m = x.shape[0]
+
+    def add_col(self, x):
+        m = x.shape[0]
+        one_mat = np.ones((m, 1))
+        return np.concatenate([one_mat, x], axis=1)
+
+    def check_format(self, x, y=np.array([[]])):
+        if x.shape[1] == 0:
+            x = self.x
+            y = self.y
+        elif x.shape[1] != 2:
+            x = self.add_col(self.scalex.fit_transform(x))
+            if y.shape[1] != 0:
+                y = self.scaley.fit_transform(y)
+
+        return x, y
+
+    def pred(self, x=np.array([[]]), real=False):
+        x, _ = self.check_format(x)
+        y_pred = np.matmul(x, self.theta.T)
+
+        if real:
+            return self.scaley.inverse_transform(y_pred)
+
+        return y_pred
+
+    def train(self, epoch=1000, alpha=0.001):
+
+        fig = plt.figure()
+        ax1 = fig.add_subplot(1, 1, 1)
+
+        for i in range(epoch):
+            error = self.pred()-self.y
+            differ = np.matmul(error.T, self.x)
+            self.theta -= differ*alpha/self.m
+
+            if i % 150 == 0:
+                ax1.cla()
+                ax1.scatter(self.x[:, -1], self.y,
+                            label="Actual Value", c='y', s=50)
+
+                y1 = self.pred(self.x)
+
+                ax1.plot(self.x[:, -1], y1, label="Predicted Line", linewidth=4)
+                ax1.set_xlim([-2, 2])
+                ax1.set_ylim([-2, 2])
+                ax1.legend()
+                display(fig)
+                clear_output(wait=True)
+
+    def show(self, x=np.array([[]]), y=np.array([[]])):
+        x, y = self.check_format(x, y)
+        y1 = self.pred(x)
+
+        plt.figure()
+        plt.plot(x[:, -1], y1, label="Predicted Line", linewidth=4)
+        plt.scatter(x[:, -1], y, label="Actual Value", c='y', s=50)
+        plt.legend()
+        plt.show()
+
+    def r2_score(self, x=np.array([[]]), y=np.array([[]])):
+        x, y = self.check_format(x, y)
+        y_mean = np.mean(y)
+        pred = self.pred(x)
+
+        up = sum((y-pred)**2)
+        down = sum((y-y_mean)**2)
+
+        accuracy = float(1 - up/down)
+
+        return 'Accuracy = {:.2f}%'.format(accuracy*100)
+```
+
+# 6. Model Train
+
+```{python}
+#| ExecuteTime: {end_time: '2020-01-24T16:04:52.812317Z', start_time: '2020-01-24T16:04:43.390733Z'}
+#| scrolled: true
+model = RegressionModel(x_train, y_train)
+model.train(5000)
+```
+
+# 7. Model Performance
+
+```{python}
+#| ExecuteTime: {end_time: '2020-01-24T16:04:52.843601Z', start_time: '2020-01-24T16:04:52.812317Z'}
+#| scrolled: true
+print("Train Accuracy = {}".format(model.r2_score()))
+print("Test  Accuracy = {}".format(model.r2_score(x_test, y_test)))
+```
+
+# 8. Model Train Plot
+
+```{python}
+#| ExecuteTime: {end_time: '2020-01-24T16:04:53.234146Z', start_time: '2020-01-24T16:04:52.843601Z'}
+#| scrolled: true
+model.show()
+```
+
+# 9. Model Test Plot
+
+```{python}
+#| ExecuteTime: {end_time: '2020-01-24T16:04:53.468514Z', start_time: '2020-01-24T16:04:53.234146Z'}
+#| scrolled: true
+model.show(x_test, y_test)
+```
+
+# 10. Model True Prediction (Without Normalization)  
+
+```{python}
+#| ExecuteTime: {end_time: '2020-01-24T16:04:53.499775Z', start_time: '2020-01-24T16:04:53.468514Z'}
+print(model.pred(x_test, real=True))
+print(y_test)
+```
+

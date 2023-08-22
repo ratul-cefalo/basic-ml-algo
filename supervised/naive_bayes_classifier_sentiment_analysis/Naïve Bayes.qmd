@@ -1,0 +1,247 @@
+---
+title: Import Library
+jupyter: python3
+---
+
+
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-19T15:15:53.519751Z', start_time: '2019-12-19T15:15:52.437882Z'}
+import pandas as pd
+import numpy as np
+np.random.seed(9)
+```
+
+# Data Loading
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-19T15:15:53.581706Z', start_time: '2019-12-19T15:15:53.523716Z'}
+data = pd.read_csv('sentiments.tsv', sep='\t', header=None)
+data.head()
+```
+
+# 1. Data Split
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-19T15:15:53.665693Z', start_time: '2019-12-19T15:15:53.587707Z'}
+def data_split(data):
+
+    split_len = np.random.rand(len(data)) < .8
+
+    train = data[split_len]
+    test = data[~split_len]
+
+    return train, test
+
+
+train, test = data_split(data)
+print('Train Data Shape = {}\nTest  Data Shape = {}'.format(train.shape, test.shape))
+```
+
+# Data Preprocess
+## 1. Same Class Data Merge
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-19T15:15:53.773679Z', start_time: '2019-12-19T15:15:53.669695Z'}
+def merge_data(train):
+
+    train_class = train[1].unique()
+
+    process_data = pd.DataFrame(
+        index=train_class, columns=['string', 'y_count'])
+
+    for i in train_class:
+        process_data.iloc[i][0] = ' '.join(train[train[1] == i][0])
+        process_data.iloc[i][1] = train[train[1] == i].shape[0]
+    return process_data
+
+
+train_merge = merge_data(train)
+print(train_merge)
+```
+
+# Data Preprocess
+## 2. Remove Special Character from Sentence
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-19T15:15:53.864663Z', start_time: '2019-12-19T15:15:53.778680Z'}
+def preprocess(data):
+
+    new_data = pd.DataFrame(data)
+    new_data.iloc[:, 0] = new_data.iloc[:, 0].str.lower()
+
+    for i in [',', '-', '.', '?', '(', ')', '"']:
+        new_data.iloc[:, 0] = new_data.iloc[:, 0].str.replace(i, ' ')
+
+    new_data.iloc[:, 0] = new_data.iloc[:, 0].map( lambda x: ' '.join(x.split()))
+
+    return new_data
+
+
+train_pre = preprocess(train_merge)
+train_pre.head()
+```
+
+# 2. Vocabulary on Training Data Set
+## 2.1 Create Vocabulary Dictionary
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-19T15:15:53.963650Z', start_time: '2019-12-19T15:15:53.869664Z'}
+def vocabulary(train_pre):
+
+    data_vocab = {}
+
+    for i in train_pre.iloc[:, 0]:
+
+        for j in i.split():
+            try:
+                data_vocab[j] += 1
+            except:
+                data_vocab[j] = 1
+
+    return data_vocab
+
+
+data_vocab = vocabulary(train_pre)
+feature_name = list(data_vocab)
+len(data_vocab)
+```
+
+# 2. Vocabulary on Training Data Set
+## 2.2 Create Vocabulary Feature Matrix
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-19T15:15:55.957340Z', start_time: '2019-12-19T15:15:53.969650Z'}
+def feature_mat(feature_name, train_pre):
+
+    x = np.zeros((train_pre.shape[0], len(feature_name)))
+    try:
+        y = np.array([train_pre.iloc[:, 1].values]).T
+        zero_data = np.concatenate([x, y], axis=1)
+        train_mat = pd.DataFrame(zero_data, columns=feature_name+['Y'])
+
+    except:
+        x = np.zeros((train_pre.shape[0], len(feature_name)))
+        train_mat = pd.DataFrame(x, columns=feature_name)
+
+    k = 0
+    for i in train_pre.iloc[:, 0]:
+        for j in i.split():
+            try:
+                train_mat[j][k] += 1
+            except:
+                train_mat[j][k] = 1
+        k += 1
+
+    return train_mat
+
+
+train_mat = feature_mat(feature_name, train_pre)
+print(train_mat)
+```
+
+# (3,4). Probability Calculate
+## 3. Prior Probability for Class
+## 4. Conditional Probability of Vocabulary for Each Class
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-19T15:15:57.181156Z', start_time: '2019-12-19T15:15:55.962342Z'}
+def prior_calculate(train_mat, feature_name):
+
+    V = len(feature_name)
+    total_class = train_mat.index.values
+
+    row = range(total_class.shape[0])
+    column = len(feature_name)
+
+    prior_mat = np.zeros((len(row), column+1))
+
+    prior_mat = pd.DataFrame(
+        prior_mat, index=total_class, columns=feature_name+['Y'])
+    total_output = train_mat.iloc[:, -1].sum()
+
+    for k, i in enumerate(total_class):
+
+        sample = train_mat.iloc[i, :-1]
+        total_word = sample.sum()
+
+        for j in feature_name:
+            prior_mat.iloc[k][j] = (sample[j]+1)/(total_word+V)
+
+        prior_mat.iloc[k]['Y'] = train_mat.iloc[i, -1]/total_output
+
+    return prior_mat, total_class
+
+
+prior_prob, total_class = prior_calculate(train_mat, feature_name)
+prior_prob
+```
+
+# Test data preprocess
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-19T15:15:57.220150Z', start_time: '2019-12-19T15:15:57.184155Z'}
+test_pre = preprocess(test)
+test_pre.head()
+```
+
+# 5. Posterior Probability for Each Class for given Test Instance
+
+## Calculate TP,TN,FP,FN for All Test Instance
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-19T15:15:59.772754Z', start_time: '2019-12-19T15:15:57.225149Z'}
+def posterior(feature_row, prior_prob, train_mat):
+
+    data_vocab = vocabulary(feature_row)
+    feature_name = list(data_vocab)
+    length = prior_prob.shape[1]
+
+    test_mat = feature_mat(feature_name, feature_row)
+
+    res = {}
+    for i in prior_prob.index.values:
+
+        total_y = train_mat['Y'][i]
+
+        res[i] = prior_prob.iloc[i, -1]
+
+        for j in feature_name:
+            try:
+                res[i] *= prior_prob.loc[i][j]**test_mat[j][0]
+            except:
+                res[i] *= (1/(total_y+length))**test_mat[j][0]
+
+    return sorted(res, key=lambda x: res[x], reverse=True)[0]
+
+
+TP, TN, FP, FN = 0, 0, 0, 0
+
+for i in range(test.shape[0]):
+
+    x = (posterior(test.iloc[i:i+1, :-1],
+                   prior_prob, train_mat), test.iloc[i, -1])
+    if x[0] == x[1]:
+        TP, TN = (TP+1, TN+0) if x[0] == 1 else (TP+0, TN+1)
+    else:
+        FP, FN = (FP+1, FN+0) if x[0] == 1 else (FP+0, FN+1)
+
+print('TP = {}\nTN = {}\nFP = {}\nFN = {}'.format(TP, TN, FP, FN))
+```
+
+# Measure Performance of This Model
+
+```{python}
+#| ExecuteTime: {end_time: '2019-12-19T15:15:59.795750Z', start_time: '2019-12-19T15:15:59.776755Z'}
+def performance(TP, TN, FP, FN):
+    precision = 100*TP/(TP+FP)
+    recall = 100*TP/(TP+FN)
+    f1_score = (2*precision*recall)/(precision+recall)
+    accuracy = 100*(TP+TN)/(TP+TN+FP+FN)
+
+    return precision, recall, f1_score, accuracy
+
+
+print('Precision = {:.2f}%\nRecall    = {:.2f}%\nF1 Score  = {:.2f}%\nAccuracy  = {:.2f}%'.format(*performance(TP, TN, FP, FN)))
+```
+

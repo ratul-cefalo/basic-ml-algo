@@ -1,0 +1,69 @@
+---
+title: 1. Import Library
+jupyter: python3
+---
+
+
+
+```{python}
+#| ExecuteTime: {end_time: '2020-01-06T13:31:23.485247Z', start_time: '2020-01-06T13:31:20.925649Z'}
+import numpy as np
+from sklearn.datasets import load_iris
+
+from sklearn.model_selection import train_test_split as tts
+```
+
+# 2. Load & Split iris Data
+
+```{python}
+#| ExecuteTime: {end_time: '2020-01-06T13:31:23.503249Z', start_time: '2020-01-06T13:31:23.489248Z'}
+iris = load_iris()
+x_train, x_test, y_train, y_test = tts(iris.data, iris.target, test_size=.2,random_state=0)
+```
+
+# 3. KNN Class Build
+
+```{python}
+#| ExecuteTime: {end_time: '2020-01-06T13:31:23.590231Z', start_time: '2020-01-06T13:31:23.511244Z'}
+class knn:
+    def __init__(self, point):
+        self.x = None
+        self.y = None
+        self.point = point
+
+    def fit(self, x, y):
+        self.x = x
+        self.y = y
+
+    def predict(self, x):
+        res = np.zeros((x.shape[0]))
+        for i in range(x.shape[0]):
+            temp = []
+            for j in range(self.x.shape[0]):
+                temp.append([sum((self.x[j]-x[i])**2), self.y[j]])
+            temp = [i[1] for i in sorted(temp, key=lambda x:x[0])[:self.point]]
+            res[i] = sorted(temp, key=lambda x: -temp.count(x))[0]
+        return res
+```
+
+# 4. Knn Class Initialize
+
+## k = "k" is number of neighbours used to take decision
+## k = "k" is always an odd number
+
+```{python}
+#| ExecuteTime: {end_time: '2020-01-06T13:31:23.726209Z', start_time: '2020-01-06T13:31:23.598231Z'}
+a = knn(3)
+a.fit(x_train, y_train)
+```
+
+# 5. Model Performance
+
+```{python}
+#| ExecuteTime: {end_time: '2020-01-06T13:31:23.902184Z', start_time: '2020-01-06T13:31:23.730226Z'}
+y_pred = a.predict(x_test)
+
+accuracy = np.mean(y_pred==y_test)
+print("Accuracy = {:.2f}%".format(accuracy*100))
+```
+
